@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>水質1種 解答ログ</title>
+<style>
+  :root{
+    --ink:#16323a;
+    --paper:#f2f0e8;
+    --deep:#0f3d47;
+    --teal:#1f6f78;
+    --teal-soft:#dfeae9;
+    --coral:#c1622d;
+    --line:#c9c2ae;
+    --ok:#2f7a4f;
+    --ng:#b3402e;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;
+    line-height:1.6;
+    padding-bottom:60px;
+  }
+  header{
+    background:var(--deep);
+    color:var(--paper);
+    padding:22px 18px 20px;
+  }
+  header h1{
+    margin:0 0 4px;
+    font-size:1.35rem;
+    font-weight:700;
+    letter-spacing:.02em;
+  }
+  header p{
+    margin:0;
+    font-size:.82rem;
+    color:#b9d4d2;
+  }
+  main{
+    max-width:640px;
+    margin:0 auto;
+    padding:16px;
+  }
+  section{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:16px;
+    margin-bottom:16px;
+  }
+  section h2{
+    font-size:.95rem;
+    margin:0 0 12px;
+    color:var(--deep);
+    border-bottom:2px solid var(--teal-soft);
+    padding-bottom:6px;
+  }
+  .row{
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+  }
+  .field{flex:1;min-width:120px;}
+  label{
+    display:block;
+    font-size:.75rem;
+    color:#5a6b6d;
+    margin-bottom:4px;
+  }
+  select, input[type=number], input[type=text], textarea{
+    width:100%;
+    padding:9px 8px;
+    border:1px solid var(--line);
+    border-radius:3px;
+    font-size:.92rem;
+    background:#fdfcf9;
+    color:var(--ink);
+    font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:44px;}
+  .choices{
+    display:flex;
+    gap:8px;
+    margin-top:4px;
+    flex-wrap:wrap;
+  }
+  .choice-btn{
+    width:42px;
+    height:42px;
+    border-radius:50%;
+    border:1.5px solid var(--line);
+    background:#fff;
+    font-size:1rem;
+    font-weight:600;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .choice-btn.selected{
+    background:var(--teal);
+    border-color:var(--teal);
+    color:#fff;
+  }
+  .judge-row{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+  }
+  .judge-btn{
+    flex:1;
+    padding:10px;
+    border-radius:3px;
+    border:1.5px solid var(--line);
+    background:#fff;
+    font-size:.88rem;
+    font-weight:600;
+    cursor:pointer;
+    color:#5a6b6d;
+  }
+  .judge-btn.ok.selected{background:var(--ok);border-color:var(--ok);color:#fff;}
+  .judge-btn.ng.selected{background:var(--ng);border-color:var(--ng);color:#fff;}
+  .save-btn{
+    width:100%;
+    margin-top:14px;
+    padding:12px;
+    background:var(--coral);
+    color:#fff;
+    border:none;
+    border-radius:3px;
+    font-size:.95rem;
+    font-weight:700;
+    cursor:pointer;
+    letter-spacing:.02em;
+  }
+  .save-btn:active{opacity:.85;}
+  .stats-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+    gap:8px;
+  }
+  .stat-card{
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:10px;
+    background:var(--teal-soft);
+  }
+  .stat-card .name{font-size:.72rem;color:#3d5a5c;margin-bottom:2px;}
+  .stat-card .num{font-size:1.15rem;font-weight:700;color:var(--deep);}
+  .stat-card .sub{font-size:.7rem;color:#5a6b6d;}
+  .filter-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .filter-row select{flex:1;}
+  .entry{
+    border-bottom:1px solid #ece8dc;
+    padding:10px 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:10px;
+  }
+  .entry:last-child{border-bottom:none;}
+  .entry-main{flex:1;}
+  .entry-tag{
+    font-size:.72rem;
+    color:#5a6b6d;
+    margin-bottom:2px;
+  }
+  .entry-q{font-size:.9rem;font-weight:600;}
+  .entry-memo{font-size:.78rem;color:#5a6b6d;margin-top:3px;}
+  .entry-mark{
+    font-size:.75rem;
+    font-weight:700;
+    padding:3px 9px;
+    border-radius:10px;
+    white-space:nowrap;
+  }
+  .entry-mark.ok{background:#e2f0e6;color:var(--ok);}
+  .entry-mark.ng{background:#f5e2dd;color:var(--ng);}
+  .entry-del{
+    background:none;
+    border:none;
+    color:#a99;
+    font-size:.72rem;
+    cursor:pointer;
+    padding:2px 6px;
+  }
+  .empty{
+    text-align:center;
+    color:#8a8577;
+    font-size:.85rem;
+    padding:20px 0;
+  }
+  .status{
+    font-size:.75rem;
+    color:#8a8577;
+    text-align:center;
+    margin-top:4px;
+    min-height:16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>水質1種 解答ログ</h1>
+  <p>過去問を解いた記録を残して、正答率を振り返る</p>
+</header>
+
+<main>
+
+  <section>
+    <h2>解答を記録する</h2>
+    <div class="row">
+      <div class="field">
+        <label>年度</label>
+        <select id="f-year"></select>
+      </div>
+      <div class="field">
+        <label>科目</label>
+        <select id="f-subject"></select>
+      </div>
+      <div class="field" style="max-width:90px;">
+        <label>問番号</label>
+        <input type="number" id="f-qnum" min="1" placeholder="1">
+      </div>
+    </div>
+
+    <label>選んだ選択肢</label>
+    <div class="choices" id="choice-group">
+      <button type="button" class="choice-btn" data-v="1">1</button>
+      <button type="button" class="choice-btn" data-v="2">2</button>
+      <button type="button" class="choice-btn" data-v="3">3</button>
+      <button type="button" class="choice-btn" data-v="4">4</button>
+      <button type="button" class="choice-btn" data-v="5">5</button>
+    </div>
+
+    <div class="judge-row">
+      <button type="button" class="judge-btn ok" id="btn-ok">○ 正解</button>
+      <button type="button" class="judge-btn ng" id="btn-ng">✕ 不正解</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <div class="field">
+        <label>メモ(任意)</label>
+        <textarea id="f-memo" placeholder="間違えた理由やポイントなど"></textarea>
+      </div>
+    </div>
+
+    <button class="save-btn" id="btn-save">この解答を保存</button>
+    <div class="status" id="status"></div>
+  </section>
+
+  <section>
+    <h2>科目別の正答率</h2>
+    <div class="stats-grid" id="stats"></div>
+  </section>
+
+  <section>
+    <h2>解答履歴</h2>
+    <div class="filter-row">
+      <select id="filter-subject"><option value="">すべての科目</option></select>
+      <select id="filter-year"><option value="">すべての年度</option></select>
+    </div>
+    <div id="history"></div>
+  </section>
+
+</main>
+
+<script>
+const SUBJECTS = ["公害総論","水質概論","汚水処理特論","水質有害物質特論","大規模水質特論"];
+const YEARS = ["R7","R6","R5","R4","R3","R2","R1","H30","H29","H28","H27","H26","H25","H24","H23","H22"];
+const STORAGE_KEY = "kougai-suishitsu1-log";
+
+let selectedChoice = null;
+let selectedJudge = null;
+let entries = [];
+
+function fillSelect(sel, items, withEmpty){
+  if(withEmpty){
+    const o=document.createElement("option");
+    o.value="";o.textContent=withEmpty;
+    sel.appendChild(o);
+  }
+  items.forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v;o.textContent=v;
+    sel.appendChild(o);
+  });
+}
+
+fillSelect(document.getElementById("f-year"), YEARS);
+fillSelect(document.getElementById("f-subject"), SUBJECTS);
+fillSelect(document.getElementById("filter-subject"), SUBJECTS, "すべての科目");
+fillSelect(document.getElementById("filter-year"), YEARS, "すべての年度");
+
+document.querySelectorAll(".choice-btn").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll(".choice-btn").forEach(b=>b.classList.remove("selected"));
+    btn.classList.add("selected");
+    selectedChoice = btn.dataset.v;
+  });
+});
+
+document.getElementById("btn-ok").addEventListener("click", ()=>setJudge("ok"));
+document.getElementById("btn-ng").addEventListener("click", ()=>setJudge("ng"));
+function setJudge(v){
+  selectedJudge = v;
+  document.getElementById("btn-ok").classList.toggle("selected", v==="ok");
+  document.getElementById("btn-ng").classList.toggle("selected", v==="ng");
+}
+
+function setStatus(msg, isErr){
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.style.color = isErr ? "#b3402e" : "#5a6b6d";
+  if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=""; }, 2500);
+}
+
+async function loadEntries(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY);
+    entries = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    entries = [];
+  }
+  render();
+}
+
+async function saveEntries(){
+  try{
+    const res = await window.storage.set(STORAGE_KEY, JSON.stringify(entries));
+    if(!res){ setStatus("保存に失敗しました。もう一度お試しください。", true); }
+  }catch(e){
+    setStatus("保存に失敗しました。もう一度お試しください。", true);
+  }
+}
+
+document.getElementById("btn-save").addEventListener("click", async ()=>{
+  const year = document.getElementById("f-year").value;
+  const subject = document.getElementById("f-subject").value;
+  const qnum = document.getElementById("f-qnum").value;
+  const memo = document.getElementById("f-memo").value.trim();
+
+  if(!qnum){ setStatus("問題番号を入力してください", true); return; }
+  if(!selectedChoice){ setStatus("選んだ選択肢を選んでください", true); return; }
+  if(!selectedJudge){ setStatus("正解・不正解を選んでください", true); return; }
+
+  entries.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    year, subject, qnum,
+    choice: selectedChoice,
+    judge: selectedJudge,
+    memo,
+    ts: new Date().toISOString()
+  });
+
+  await saveEntries();
+
+  // reset form (keep year/subject for consecutive entry)
+  document.getElementById("f-qnum").value = "";
+  document.getElementById("f-memo").value = "";
+  document.querySelectorAll(".choice-btn").forEach(b=>b.classList.remove("selected"));
+  selectedChoice = null;
+  document.getElementById("btn-ok").classList.remove("selected");
+  document.getElementById("btn-ng").classList.remove("selected");
+  selectedJudge = null;
+
+  setStatus("保存しました");
+  render();
+});
+
+async function deleteEntry(id){
+  entries = entries.filter(e=>e.id!==id);
+  await saveEntries();
+  render();
+}
+
+function render(){
+  renderStats();
+  renderHistory();
+}
+
+function renderStats(){
+  const grid = document.getElementById("stats");
+  grid.innerHTML = "";
+  SUBJECTS.forEach(sub=>{
+    const list = entries.filter(e=>e.subject===sub);
+    const total = list.length;
+    const ok = list.filter(e=>e.judge==="ok").length;
+    const rate = total ? Math.round(ok/total*100) : null;
+    const card = document.createElement("div");
+    card.className = "stat-card";
+    card.innerHTML = `
+      <div class="name">${sub}</div>
+      <div class="num">${rate===null ? "-" : rate + "%"}</div>
+      <div class="sub">${total}問中${ok}問正解</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderHistory(){
+  const subF = document.getElementById("filter-subject").value;
+  const yearF = document.getElementById("filter-year").value;
+  const list = entries.filter(e=>
+    (!subF || e.subject===subF) && (!yearF || e.year===yearF)
+  );
+  const box = document.getElementById("history");
+  box.innerHTML = "";
+  if(list.length===0){
+    box.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    return;
+  }
+  list.forEach(e=>{
+    const row = document.createElement("div");
+    row.className = "entry";
+    row.innerHTML = `
+      <div class="entry-main">
+        <div class="entry-tag">${e.year}年度 ${e.subject}</div>
+        <div class="entry-q">問${e.qnum}　選択: ${e.choice}</div>
+        ${e.memo ? `<div class="entry-memo">${escapeHtml(e.memo)}</div>` : ""}
+      </div>
+      <div style="text-align:right;">
+        <div class="entry-mark ${e.judge}">${e.judge==="ok"?"○ 正解":"✕ 不正解"}</div>
+        <button class="entry-del" data-id="${e.id}">削除</button>
+      </div>
+    `;
+    box.appendChild(row);
+  });
+  box.querySelectorAll(".entry-del").forEach(btn=>{
+    btn.addEventListener("click", ()=>deleteEntry(btn.dataset.id));
+  });
+}
+
+function escapeHtml(s){
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+document.getElementById("filter-subject").addEventListener("change", renderHistory);
+document.getElementById("filter-year").addEventListener("change", renderHistory);
+
+loadEntries();
+</script>
+
+</body>
+</html>
