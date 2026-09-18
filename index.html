@@ -324,20 +324,19 @@ function setStatus(msg, isErr){
   if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=""; }, 2500);
 }
 
-async function loadEntries(){
+function loadEntries(){
   try{
-    const res = await window.storage.get(STORAGE_KEY);
-    entries = res && res.value ? JSON.parse(res.value) : [];
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
   }catch(e){
     entries = [];
   }
   render();
 }
 
-async function saveEntries(){
+function saveEntries(){
   try{
-    const res = await window.storage.set(STORAGE_KEY, JSON.stringify(entries));
-    if(!res){ setStatus("保存に失敗しました。もう一度お試しください。", true); }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   }catch(e){
     setStatus("保存に失敗しました。もう一度お試しください。", true);
   }
@@ -362,7 +361,7 @@ document.getElementById("btn-save").addEventListener("click", async ()=>{
     ts: new Date().toISOString()
   });
 
-  await saveEntries();
+  saveEntries();
 
   // reset form (keep year/subject for consecutive entry)
   document.getElementById("f-qnum").value = "";
@@ -377,9 +376,9 @@ document.getElementById("btn-save").addEventListener("click", async ()=>{
   render();
 });
 
-async function deleteEntry(id){
+function deleteEntry(id){
   entries = entries.filter(e=>e.id!==id);
-  await saveEntries();
+  saveEntries();
   render();
 }
 
