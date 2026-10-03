@@ -280,6 +280,13 @@
 
 <script>
 const SUBJECTS = ["公害総論","水質概論","汚水処理特論","水質有害物質特論","大規模水質特論"];
+const SUBJECT_TOTALS = {
+  "公害総論": 15,
+  "水質概論": 10,
+  "汚水処理特論": 25,
+  "水質有害物質特論": 15,
+  "大規模水質特論": 10
+};
 const YEARS = ["R7","R6","R5","R4","R3","R2","R1","H30","H29","H28","H27","H26","H25","H24","H23","H22"];
 const STORAGE_KEY = "kougai-suishitsu1-log";
 
@@ -404,7 +411,7 @@ function renderStats(){
     const card = document.createElement("div");
     card.className = "stat-card";
     card.innerHTML = `
-      <div class="name">${sub}</div>
+      <div class="name">${sub}(全${SUBJECT_TOTALS[sub]}問)</div>
       <div class="num">${rate===null ? "-" : rate + "%"}</div>
       <div class="sub">${total}問中${ok}問正解</div>
     `;
