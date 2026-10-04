@@ -268,6 +268,19 @@
 
 
   <section>
+    <h2>データのバックアップ</h2>
+    <p style="font-size:.8rem;color:#5a6b6d;margin:0 0 10px;">
+      記録をファイル(JSON)として保存したり、保存しておいたファイルを読み込んで復元できます。
+    </p>
+    <div class="row">
+      <button type="button" class="judge-btn" id="btn-export" style="flex:1;">ファイルに保存(書き出し)</button>
+      <button type="button" class="judge-btn" id="btn-import-trigger" style="flex:1;">ファイルから読み込む</button>
+    </div>
+    <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
+    <div class="status" id="backup-status"></div>
+  </section>
+
+  <section>
     <h2>解答履歴</h2>
     <div class="filter-row">
       <select id="filter-subject"><option value="">すべての科目</option></select>
@@ -461,6 +474,96 @@ function escapeHtml(s){
 document.getElementById("filter-subject").addEventListener("change", renderHistory);
 document.getElementById("filter-year").addEventListener("change", renderHistory);
 document.getElementById("stats-subject-year-filter").addEventListener("change", renderStats);
+
+function setBackupStatus(msg, isErr){
+  const el = document.getElementById("backup-status");
+  el.textContent = msg;
+  el.style.color = isErr ? "#b3402e" : "#5a6b6d";
+  if(msg) setTimeout(()=>{ if(el.textContent===msg) el.textContent=""; }, 3500);
+}
+
+async function exportData(){
+  if(entries.length === 0){
+    setBackupStatus("保存できる記録がまだありません", true);
+    return;
+  }
+  const dataStr = JSON.stringify(entries, null, 2);
+  const today = new Date().toISOString().slice(0,10);
+  const filename = `suishitsu1-log_${today}.json`;
+
+  // Claudeの公開ページ上ではdownloads機能を優先して使う
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      const downloads = await window.claude.use("downloads");
+      if(downloads){
+        await downloads.save({ filename, data: dataStr });
+        setBackupStatus("ファイルに保存しました");
+        return;
+      }
+    }
+  }catch(e){
+    if(e && e.code === "declined"){
+      setBackupStatus("保存をキャンセルしました");
+      return;
+    }
+    // それ以外のエラーは通常のダウンロード方式にフォールバック
+  }
+
+  // 通常のブラウザ(GitHub Pagesなど)ではこちらを使う
+  try{
+    const blob = new Blob([dataStr], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setBackupStatus("ファイルに保存しました");
+  }catch(e){
+    setBackupStatus("保存に失敗しました", true);
+  }
+}
+
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    let incoming;
+    try{
+      incoming = JSON.parse(reader.result);
+      if(!Array.isArray(incoming)) throw new Error("not array");
+    }catch(e){
+      setBackupStatus("読み込めませんでした(正しいファイルか確認してください)", true);
+      return;
+    }
+    const existingIds = new Set(entries.map(e=>e.id));
+    let added = 0;
+    incoming.forEach(item=>{
+      if(item && item.id && !existingIds.has(item.id)){
+        entries.push(item);
+        existingIds.add(item.id);
+        added++;
+      }
+    });
+    entries.sort((a,b)=> new Date(b.ts||0) - new Date(a.ts||0));
+    saveEntries();
+    render();
+    setBackupStatus(`${added}件読み込みました(重複は除外)`);
+  };
+  reader.onerror = () => setBackupStatus("ファイルの読み込みに失敗しました", true);
+  reader.readAsText(file);
+}
+
+document.getElementById("btn-export").addEventListener("click", exportData);
+document.getElementById("btn-import-trigger").addEventListener("click", ()=>{
+  document.getElementById("import-file").click();
+});
+document.getElementById("import-file").addEventListener("change", (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(file) importData(file);
+  e.target.value = "";
+});
 
 loadEntries();
 </script>
