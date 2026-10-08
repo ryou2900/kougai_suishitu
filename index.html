@@ -192,6 +192,54 @@
     cursor:pointer;
     padding:2px 6px;
   }
+  .group{
+    border:1px solid var(--line);
+    border-radius:3px;
+    margin-bottom:8px;
+    overflow:hidden;
+  }
+  .group-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 12px;
+    background:var(--teal-soft);
+    cursor:pointer;
+    user-select:none;
+  }
+  .group-header .label{
+    font-size:.85rem;
+    font-weight:700;
+    color:var(--deep);
+  }
+  .group-header .meta{
+    font-size:.78rem;
+    color:#3d5a5c;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .group-header .arrow{
+    display:inline-block;
+    transition:transform .15s;
+    font-size:.7rem;
+  }
+  .group-header.open .arrow{transform:rotate(90deg);}
+  .group-body{
+    padding:0 12px;
+  }
+  .group-body.closed{display:none;}
+  .more-btn{
+    width:100%;
+    padding:8px;
+    margin:8px 0;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:3px;
+    font-size:.8rem;
+    color:var(--teal);
+    cursor:pointer;
+  }
   .empty{
     text-align:center;
     color:#8a8577;
@@ -285,6 +333,16 @@
     <div class="filter-row">
       <select id="filter-subject"><option value="">すべての科目</option></select>
       <select id="filter-year"><option value="">すべての年度</option></select>
+    </div>
+    <div class="filter-row">
+      <select id="filter-sort">
+        <option value="new">新しい順</option>
+        <option value="old">古い順</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--ink);white-space:nowrap;margin:0;">
+        <input type="checkbox" id="filter-incorrect-only" style="width:auto;">
+        不正解のみ
+      </label>
     </div>
     <div id="history"></div>
   </section>
@@ -432,36 +490,105 @@ function renderStats(){
   });
 }
 
+const PAGE_SIZE = 20;
+let openGroups = new Set();
+let pageCounts = {};
+
+function groupKey(e){ return e.year + "|" + e.subject; }
+
 function renderHistory(){
   const subF = document.getElementById("filter-subject").value;
   const yearF = document.getElementById("filter-year").value;
-  const list = entries.filter(e=>
-    (!subF || e.subject===subF) && (!yearF || e.year===yearF)
+  const sortV = document.getElementById("filter-sort").value;
+  const incorrectOnly = document.getElementById("filter-incorrect-only").checked;
+
+  let list = entries.filter(e=>
+    (!subF || e.subject===subF) &&
+    (!yearF || e.year===yearF) &&
+    (!incorrectOnly || e.judge==="ng")
   );
+
+  list.sort((a,b)=>{
+    const da = new Date(a.ts||0), db = new Date(b.ts||0);
+    return sortV === "old" ? da-db : db-da;
+  });
+
   const box = document.getElementById("history");
   box.innerHTML = "";
+
   if(list.length===0){
-    box.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    box.innerHTML = '<div class="empty">該当する記録がありません</div>';
     return;
   }
+
+  // 年度×科目でグループ化(登場順を維持)
+  const groups = new Map();
   list.forEach(e=>{
-    const row = document.createElement("div");
-    row.className = "entry";
-    row.innerHTML = `
-      <div class="entry-main">
-        <div class="entry-tag">${e.year}年度 ${e.subject}</div>
-        <div class="entry-q">問${e.qnum}　選択: ${e.choice}</div>
-        ${e.memo ? `<div class="entry-memo">${escapeHtml(e.memo)}</div>` : ""}
-      </div>
-      <div style="text-align:right;">
-        <div class="entry-mark ${e.judge}">${e.judge==="ok"?"○ 正解":"✕ 不正解"}</div>
-        <button class="entry-del" data-id="${e.id}">削除</button>
-      </div>
-    `;
-    box.appendChild(row);
+    const k = groupKey(e);
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(e);
   });
-  box.querySelectorAll(".entry-del").forEach(btn=>{
-    btn.addEventListener("click", ()=>deleteEntry(btn.dataset.id));
+
+  groups.forEach((items, key)=>{
+    const [yr, sub] = key.split("|");
+    const total = items.length;
+    const ok = items.filter(e=>e.judge==="ok").length;
+    const rate = Math.round(ok/total*100);
+    const isOpen = openGroups.has(key);
+
+    const groupEl = document.createElement("div");
+    groupEl.className = "group";
+
+    const header = document.createElement("div");
+    header.className = "group-header" + (isOpen ? " open" : "");
+    header.innerHTML = `
+      <span class="label"><span class="arrow">▶</span> ${yr}年度 ${sub}</span>
+      <span class="meta">${total}問 / 正答率${rate}%</span>
+    `;
+    header.addEventListener("click", ()=>{
+      if(openGroups.has(key)) openGroups.delete(key);
+      else openGroups.add(key);
+      renderHistory();
+    });
+    groupEl.appendChild(header);
+
+    const body = document.createElement("div");
+    body.className = "group-body" + (isOpen ? "" : " closed");
+
+    if(isOpen){
+      const shown = pageCounts[key] || PAGE_SIZE;
+      items.slice(0, shown).forEach(e=>{
+        const row = document.createElement("div");
+        row.className = "entry";
+        row.innerHTML = `
+          <div class="entry-main">
+            <div class="entry-q">問${e.qnum}　選択: ${e.choice}</div>
+            ${e.memo ? `<div class="entry-memo">${escapeHtml(e.memo)}</div>` : ""}
+          </div>
+          <div style="text-align:right;">
+            <div class="entry-mark ${e.judge}">${e.judge==="ok"?"○ 正解":"✕ 不正解"}</div>
+            <button class="entry-del" data-id="${e.id}">削除</button>
+          </div>
+        `;
+        body.appendChild(row);
+      });
+      if(items.length > shown){
+        const moreBtn = document.createElement("button");
+        moreBtn.className = "more-btn";
+        moreBtn.textContent = `もっと見る(残り${items.length - shown}件)`;
+        moreBtn.addEventListener("click", ()=>{
+          pageCounts[key] = shown + PAGE_SIZE;
+          renderHistory();
+        });
+        body.appendChild(moreBtn);
+      }
+      body.querySelectorAll(".entry-del").forEach(btn=>{
+        btn.addEventListener("click", ()=>deleteEntry(btn.dataset.id));
+      });
+    }
+
+    groupEl.appendChild(body);
+    box.appendChild(groupEl);
   });
 }
 
@@ -471,8 +598,14 @@ function escapeHtml(s){
   return d.innerHTML;
 }
 
-document.getElementById("filter-subject").addEventListener("change", renderHistory);
-document.getElementById("filter-year").addEventListener("change", renderHistory);
+function resetHistoryPaging(){
+  pageCounts = {};
+  renderHistory();
+}
+document.getElementById("filter-subject").addEventListener("change", resetHistoryPaging);
+document.getElementById("filter-year").addEventListener("change", resetHistoryPaging);
+document.getElementById("filter-sort").addEventListener("change", resetHistoryPaging);
+document.getElementById("filter-incorrect-only").addEventListener("change", resetHistoryPaging);
 document.getElementById("stats-subject-year-filter").addEventListener("change", renderStats);
 
 function setBackupStatus(msg, isErr){
